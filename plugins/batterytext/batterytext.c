@@ -13,6 +13,7 @@
  */
 
 #include <sys/types.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -70,7 +71,7 @@ text_update(batterytext_priv *gm)
     energy_full_design = read_bat_value(gm->battery, "energy_full_design");
     energy_full = read_bat_value(gm->battery, "energy_full");
     energy_now = read_bat_value(gm->battery, "energy_now");
-    power_now = read_bat_value(gm->battery, "power_now");
+    power_now = fabs(read_bat_value(gm->battery, "power_now"));
 
     snprintf(battery_status, sizeof(battery_status), "%s/status", gm->battery);
     fp_status = fopen(battery_status, "r");
@@ -87,18 +88,21 @@ text_update(batterytext_priv *gm)
             charge_ratio = 100 * energy_now / energy_full_design;
         else
             charge_ratio = 100 * energy_now / energy_full;
-        if (discharging)
+        if (discharging && (power_now > 0))
         {
             markup = g_markup_printf_escaped("<span size='%s' foreground='red'><b>%.2f-</b></span>",
                 gm->textsize, charge_ratio);
             charge_time = (int)(energy_now / power_now * 3600);
         }
-        else
+        else if (power_now > 0)
         {
             markup = g_markup_printf_escaped("<span size='%s' foreground='green'><b>%.2f+</b></span>",
                 gm->textsize, charge_ratio);
             charge_time = (int)((energy_full - energy_now) / power_now * 3600);
         }
+        else
+            markup = g_markup_printf_escaped("<span size='%s' foreground='black'><b>%.2f</b></span>",
+                gm->textsize, charge_ratio);
         tooltip = g_markup_printf_escaped("%02d:%02d:%02d",
             charge_time / 3600, (charge_time / 60) % 60, charge_time % 60);
         gtk_label_set_markup (GTK_LABEL(gm->main), markup);
